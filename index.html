@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Keuangan</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #2ECC71; --danger: #e74c3c; --dark: #1e272e; --bg: #f8f9fa; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Poppins', sans-serif; }
+        body { background: var(--bg); color: #2d3436; overflow-x: hidden; }
+
+        /* AUTH SCREEN */
+        #authOverlay { position: fixed; inset: 0; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .auth-card { background: white; width: 90%; max-width: 380px; padding: 40px 30px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
+        .auth-card input { width: 100%; padding: 14px; margin-bottom: 15px; border: 1px solid #eee; border-radius: 12px; outline: none; }
+        .auth-footer { margin-top: 20px; font-size: 14px; color: #636e72; }
+        .auth-footer span { color: var(--primary); cursor: pointer; font-weight: 600; }
+
+        /* SIDEBAR */
+        .sidebar { position: fixed; left: -280px; top: 0; width: 280px; height: 100%; background: var(--dark); color: white; transition: 0.3s; z-index: 2000; padding: 30px 20px; }
+        .sidebar.active { left: 0; }
+        .sidebar h2 { color: var(--primary); margin-bottom: 30px; text-align: center; font-size: 24px; }
+        .sidebar li { padding: 15px; margin-bottom: 10px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 15px; list-style: none; transition: 0.2s; }
+        .sidebar li:hover { background: rgba(255,255,255,0.1); }
+        .sidebar li.active { background: var(--primary); }
+        
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 1500; }
+        .overlay.active { display: block; }
+
+        /* MAIN CONTENT */
+        .main-content { padding: 20px; max-width: 600px; margin: 0 auto; min-height: 100vh; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .balance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .balance-box { padding: 20px; border-radius: 20px; color: white; min-height: 110px; display: flex; flex-direction: column; justify-content: center; }
+        .box-tabungan { background: #9b59b6; }
+        .box-darurat { background: #3498db; }
+        .box-jajan { background: #e67e22; grid-column: span 2; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; background: var(--primary); color: white; }
+        .btn-danger { background: var(--danger) !important; }
+        .hidden { display: none !important; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 12px 0; border-bottom: 1px solid #f1f1f1; font-size: 14px; }
+        
+        select, input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; outline: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="sidebar" id="sidebar">
+    <h2>PRO KEUANGAN</h2>
+    <ul id="menuItems">
+        <li class="nav-link active" onclick="switchPage('keuangan', '')"><i class="fas fa-th-large"></i> Dashboard</li>
+        <li class="nav-link" onclick="switchPage('pocket', 'Tabungan')"><i class="fas fa-piggy-bank"></i> Tabungan</li>
+        <li class="nav-link" onclick="switchPage('pocket', 'Dana Darurat')"><i class="fas fa-shield-alt"></i> Dana Darurat</li>
+        <li class="nav-link" onclick="switchPage('pocket', 'Uang Jajan')"><i class="fas fa-utensils"></i> Uang Jajan</li>
+    </ul>
+    <div onclick="doLogout()" style="margin-top: 40px; padding: 15px; background: rgba(231, 76, 60, 0.2); color: #ff7675; border-radius: 12px; cursor: pointer; text-align: center; font-weight: 600;">
+        <i class="fas fa-sign-out-alt"></i> Keluar Aplikasi
+    </div>
+</div>
+
+<div id="authOverlay">
+    <div class="auth-card" id="loginForm">
+        <h2>Masuk</h2>
+        <input type="email" id="lEmail" placeholder="Email">
+        <input type="password" id="lPass" placeholder="Password">
+        <button class="btn" onclick="doLogin()">Login</button>
+        <div class="auth-footer">Belum punya akun? <span onclick="toggleAuth(true)">Daftar</span></div>
+    </div>
+    <div class="auth-card hidden" id="registerForm">
+        <h2>Daftar</h2>
+        <input type="text" id="rName" placeholder="Nama Lengkap">
+        <input type="email" id="rEmail" placeholder="Email">
+        <input type="password" id="rPass" placeholder="Password">
+        <button class="btn" onclick="doRegister()">Buat Akun</button>
+        <div class="auth-footer">Sudah punya akun? <span onclick="toggleAuth(false)">Login</span></div>
+    </div>
+</div>
+
+<div class="main-content">
+    <header>
+        <i class="fas fa-bars" style="font-size:24px; cursor:pointer;" onclick="toggleSidebar()"></i>
+        <div style="text-align: right;">
+            <small id="dateHeader" style="color: #999;"></small><br>
+            <strong id="userNameHeader">Guest</strong>
+        </div>
+    </header>
+
+    <div id="page-keuangan" class="page">
+        <div class="balance-grid">
+            <div class="balance-box box-darurat"><small>Dana Darurat</small><h2 id="dash-DanaDarurat">Rp 0</h2></div>
+            <div class="balance-box box-tabungan"><small>Tabungan</small><h2 id="dash-Tabungan">Rp 0</h2></div>
+            <div class="balance-box box-jajan"><small>Uang Jajan</small><h2 id="dash-UangJajan">Rp 0</h2></div>
+        </div>
+        <div class="card">
+            <input type="date" id="globalDateFilter" onchange="loadHistory()" style="background:#eee; border:none; padding:10px; border-radius:10px; margin-bottom:15px; font-weight:bold;">
+            <h4>Semua Riwayat</h4>
+            <table id="historyTableAll"></table>
+        </div>
+    </div>
+
+    <div id="page-pocket" class="page hidden">
+        <div class="card">
+            <h4 id="pocketTitle">Input</h4><br>
+            <select id="iptType">
+                <option value="in">Pemasukan (+)</option>
+                <option value="out">Pengeluaran (-)</option>
+            </select>
+            <input type="number" id="iptAmount" placeholder="Jumlah">
+            <input type="text" id="iptDesc" placeholder="Keterangan">
+            <button class="btn" onclick="addTransaction()">Simpan</button>
+        </div>
+        <div class="card">
+            <h4>Riwayat Kantong</h4>
+            <table id="historyTablePocket"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let transactions = [];
+    let activePocket = 'Tabungan';
+
+    function formatIDR(n) { return "Rp " + new Intl.NumberFormat('id-ID').format(n); }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
+    function toggleAuth(isReg) { document.getElementById('loginForm').classList.toggle('hidden', isReg); document.getElementById('registerForm').classList.toggle('hidden', !isReg); }
+
+    function switchPage(pageId, pocketName) {
+        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+        document.getElementById('page-' + pageId).classList.remove('hidden');
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        if(pocketName) {
+            activePocket = pocketName;
+            document.getElementById('pocketTitle').innerText = "Catatan " + pocketName;
+        }
+        toggleSidebar();
+        loadHistory();
+    }
+
+    function doRegister() {
+        const name = document.getElementById('rName').value;
+        const email = document.getElementById('rEmail').value;
+        const pass = document.getElementById('rPass').value;
+        if(!name || !email || !pass) return alert("Lengkapi data!");
+        localStorage.setItem('user_' + email, JSON.stringify({name, email, pass}));
+        alert("Daftar Berhasil!"); toggleAuth(false);
+    }
+
+    function doLogin() {
+        const email = document.getElementById('lEmail').value;
+        const pass = document.getElementById('lPass').value;
+        const stored = localStorage.getItem('user_' + email);
+        if(stored) {
+            const user = JSON.parse(stored);
+            if(user.pass === pass) {
+                currentUser = user;
+                localStorage.setItem('session_pro', email);
+                initApp();
+            } else { alert("Password salah!"); }
+        } else { alert("Email belum terdaftar!"); }
+    }
+
+    function initApp() {
+        document.getElementById('authOverlay').classList.add('hidden');
+        document.getElementById('userNameHeader').innerText = currentUser.name;
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('globalDateFilter').value = today;
+        
+        // AMBIL DATA BERDASARKAN EMAIL (KUNCI PROGRES)
+        const saved = localStorage.getItem('data_v2_' + currentUser.email);
+        transactions = saved ? JSON.parse(saved) : [];
+        
+        calculateBalances();
+        loadHistory();
+    }
+
+    function calculateBalances() {
+        let b = { "Tabungan": 0, "Dana Darurat": 0, "Uang Jajan": 0 };
+        transactions.forEach(t => {
+            if(t.type === 'in') b[t.pocket] += parseInt(t.amount);
+            else b[t.pocket] -= parseInt(t.amount);
+        });
+        document.getElementById('dash-Tabungan').innerText = formatIDR(b["Tabungan"]);
+        document.getElementById('dash-DanaDarurat').innerText = formatIDR(b["Dana Darurat"]);
+        document.getElementById('dash-UangJajan').innerText = formatIDR(b["Uang Jajan"]);
+    }
+
+    function addTransaction() {
+        const amount = parseInt(document.getElementById('iptAmount').value);
+        const desc = document.getElementById('iptDesc').value;
+        const type = document.getElementById('iptType').value;
+        const date = document.getElementById('globalDateFilter').value;
+        if(!amount || !desc) return alert("Isi data!");
+
+        transactions.push({ pocket: activePocket, type, amount, desc, date });
+        localStorage.setItem('data_v2_' + currentUser.email, JSON.stringify(transactions));
+        
+        document.getElementById('iptAmount').value = "";
+        document.getElementById('iptDesc').value = "";
+        calculateBalances();
+        loadHistory();
+    }
+
+    function loadHistory() {
+        const selDate = document.getElementById('globalDateFilter').value;
+        if(selDate) {
+            const d = new Date(selDate);
+            document.getElementById('dateHeader').innerText = d.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
+        }
+
+        const filteredAll = transactions.filter(t => t.date === selDate);
+        let hAll = "";
+        filteredAll.slice().reverse().forEach(t => {
+            const clr = t.type === 'in' ? '#2ecc71' : '#e74c3c';
+            hAll += `<tr><td><small>${t.pocket}</small><br><strong>${t.desc}</strong></td><td style="text-align:right; font-weight:bold; color:${clr}">${t.type==='in'?'+':'-'}${formatIDR(t.amount)}</td></tr>`;
+        });
+        document.getElementById('historyTableAll').innerHTML = hAll || "<tr><td colspan='2' style='text-align:center; padding:20px; color:#ccc;'>Belum ada data</td></tr>";
+
+        const filteredPoc = transactions.filter(t => t.pocket === activePocket && t.date === selDate);
+        let hPoc = "";
+        filteredPoc.slice().reverse().forEach(t => {
+            const clr = t.type === 'in' ? '#2ecc71' : '#e74c3c';
+            hPoc += `<tr><td><strong>${t.desc}</strong></td><td style="text-align:right; font-weight:bold; color:${clr}">${t.type==='in'?'+':'-'}${formatIDR(t.amount)}</td></tr>`;
+        });
+        document.getElementById('historyTablePocket').innerHTML = hPoc || "<tr><td colspan='2' style='text-align:center; padding:20px; color:#ccc;'>Kosong</td></tr>";
+    }
+
+    function doLogout() {
+        localStorage.removeItem('session_pro');
+        window.location.reload();
+    }
+
+    window.onload = () => {
+        const sesEmail = localStorage.getItem('session_pro');
+        if(sesEmail) {
+            const db = localStorage.getItem('user_' + sesEmail);
+            if(db) { currentUser = JSON.parse(db); initApp(); }
+        }
+    };
+</script>
+</body>
+</html>
+
