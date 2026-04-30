@@ -39,12 +39,13 @@
         .box-tabungan { background: #9b59b6; }
         .box-darurat { background: #3498db; }
         .box-jajan { background: #e67e22; grid-column: span 2; }
+        .box-total { background: var(--dark); grid-column: span 2; }
 
         .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; background: var(--primary); color: white; }
-        .btn-danger { background: var(--danger) !important; }
         .hidden { display: none !important; }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         td { padding: 12px 0; border-bottom: 1px solid #f1f1f1; font-size: 14px; }
+        th { text-align: left; font-size: 13px; color: #999; padding-bottom: 5px; border-bottom: 2px solid #f1f1f1; }
         
         select, input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; outline: none; font-size: 14px; }
     </style>
@@ -60,8 +61,9 @@
         <li class="nav-link" onclick="switchPage('pocket', 'Tabungan')"><i class="fas fa-piggy-bank"></i> Tabungan</li>
         <li class="nav-link" onclick="switchPage('pocket', 'Dana Darurat')"><i class="fas fa-shield-alt"></i> Dana Darurat</li>
         <li class="nav-link" onclick="switchPage('pocket', 'Uang Jajan')"><i class="fas fa-utensils"></i> Uang Jajan</li>
+        <li class="nav-link" onclick="switchPage('profil', '')" style="border-top: 1px solid #444; margin-top: 10px; padding-top: 20px;"><i class="fas fa-user-circle"></i> Profil & Summary</li>
     </ul>
-    <div onclick="doLogout()" style="margin-top: 40px; padding: 15px; background: rgba(231, 76, 60, 0.2); color: #ff7675; border-radius: 12px; cursor: pointer; text-align: center; font-weight: 600;">
+    <div onclick="doLogout()" style="margin-top: 20px; padding: 15px; background: rgba(231, 76, 60, 0.2); color: #ff7675; border-radius: 12px; cursor: pointer; text-align: center; font-weight: 600;">
         <i class="fas fa-sign-out-alt"></i> Keluar Aplikasi
     </div>
 </div>
@@ -122,6 +124,23 @@
             <table id="historyTablePocket"></table>
         </div>
     </div>
+
+    <div id="page-profil" class="page hidden">
+        <div class="balance-grid">
+            <div class="balance-box box-total">
+                <small>Total Semua Uang</small>
+                <h2 id="prof-TotalSemua">Rp 0</h2>
+            </div>
+        </div>
+        <div class="card">
+            <h4 style="color: var(--primary);"><i class="fas fa-arrow-down"></i> Total Pemasukan Hari Ini</h4>
+            <table id="tableProfIn"></table>
+        </div>
+        <div class="card">
+            <h4 style="color: var(--danger);"><i class="fas fa-arrow-up"></i> Total Pengeluaran Hari Ini</h4>
+            <table id="tableProfOut"></table>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -136,7 +155,12 @@
     function switchPage(pageId, pocketName) {
         document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
         document.getElementById('page-' + pageId).classList.remove('hidden');
+        
+        // Update menu active state
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        const activeLink = Array.from(document.querySelectorAll('.nav-link')).find(l => l.innerText.includes(pocketName || (pageId === 'profil' ? 'Profil' : 'Dashboard')));
+        if(activeLink) activeLink.classList.add('active');
+
         if(pocketName) {
             activePocket = pocketName;
             document.getElementById('pocketTitle').innerText = "Catatan " + pocketName;
@@ -174,7 +198,6 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('globalDateFilter').value = today;
         
-        // AMBIL DATA BERDASARKAN EMAIL (KUNCI PROGRES)
         const saved = localStorage.getItem('data_v2_' + currentUser.email);
         transactions = saved ? JSON.parse(saved) : [];
         
@@ -184,13 +207,16 @@
 
     function calculateBalances() {
         let b = { "Tabungan": 0, "Dana Darurat": 0, "Uang Jajan": 0 };
+        let totalAll = 0;
         transactions.forEach(t => {
-            if(t.type === 'in') b[t.pocket] += parseInt(t.amount);
-            else b[t.pocket] -= parseInt(t.amount);
+            const val = parseInt(t.amount);
+            if(t.type === 'in') { b[t.pocket] += val; totalAll += val; }
+            else { b[t.pocket] -= val; totalAll -= val; }
         });
         document.getElementById('dash-Tabungan').innerText = formatIDR(b["Tabungan"]);
         document.getElementById('dash-DanaDarurat').innerText = formatIDR(b["Dana Darurat"]);
         document.getElementById('dash-UangJajan').innerText = formatIDR(b["Uang Jajan"]);
+        document.getElementById('prof-TotalSemua').innerText = formatIDR(totalAll);
     }
 
     function addTransaction() {
@@ -216,21 +242,40 @@
             document.getElementById('dateHeader').innerText = d.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
         }
 
-        const filteredAll = transactions.filter(t => t.date === selDate);
+        const filtered = transactions.filter(t => t.date === selDate);
+        
+        // Dashboard History
         let hAll = "";
-        filteredAll.slice().reverse().forEach(t => {
+        filtered.slice().reverse().forEach(t => {
             const clr = t.type === 'in' ? '#2ecc71' : '#e74c3c';
             hAll += `<tr><td><small>${t.pocket}</small><br><strong>${t.desc}</strong></td><td style="text-align:right; font-weight:bold; color:${clr}">${t.type==='in'?'+':'-'}${formatIDR(t.amount)}</td></tr>`;
         });
         document.getElementById('historyTableAll').innerHTML = hAll || "<tr><td colspan='2' style='text-align:center; padding:20px; color:#ccc;'>Belum ada data</td></tr>";
 
-        const filteredPoc = transactions.filter(t => t.pocket === activePocket && t.date === selDate);
+        // Pocket History
+        const filteredPoc = filtered.filter(t => t.pocket === activePocket);
         let hPoc = "";
         filteredPoc.slice().reverse().forEach(t => {
             const clr = t.type === 'in' ? '#2ecc71' : '#e74c3c';
             hPoc += `<tr><td><strong>${t.desc}</strong></td><td style="text-align:right; font-weight:bold; color:${clr}">${t.type==='in'?'+':'-'}${formatIDR(t.amount)}</td></tr>`;
         });
         document.getElementById('historyTablePocket').innerHTML = hPoc || "<tr><td colspan='2' style='text-align:center; padding:20px; color:#ccc;'>Kosong</td></tr>";
+
+        // Profile History (Pemasukan vs Pengeluaran)
+        let hProfIn = "<tr><th>Keterangan</th><th style='text-align:right'>Jumlah</th></tr>";
+        let hProfOut = "<tr><th>Keterangan</th><th style='text-align:right'>Jumlah</th></tr>";
+        let hasIn = false; let hasOut = false;
+
+        filtered.forEach(t => {
+            const row = `<tr><td><small>${t.pocket}</small><br><strong>${t.desc}</strong></td><td style="text-align:right; font-weight:bold;">${formatIDR(t.amount)}</td></tr>`;
+            if(t.type === 'in') { hProfIn += row; hasIn = true; }
+            else { hProfOut += row; hasOut = true; }
+        });
+
+        document.getElementById('tableProfIn').innerHTML = hasIn ? hProfIn : "<tr><td colspan='2' style='text-align:center; padding:10px; color:#ccc;'>Tidak ada pemasukan</td></tr>";
+        document.getElementById('tableProfOut').innerHTML = hasOut ? hProfOut : "<tr><td colspan='2' style='text-align:center; padding:10px; color:#ccc;'>Tidak ada pengeluaran</td></tr>";
+        
+        calculateBalances();
     }
 
     function doLogout() {
@@ -248,4 +293,3 @@
 </script>
 </body>
 </html>
-
